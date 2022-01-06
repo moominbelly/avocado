@@ -1,0 +1,229 @@
+---
+title: "Avocado"
+author: "H"
+date: "12/15/2021"
+output: html_document
+---
+
+```{r}
+Avocadodf <- read.csv("avocado_sales_data_modified.csv", header = TRUE)
+```
+
+```{r}
+Avocadodf
+ 
+Avocadodf$average_price = as.numeric(sub("\\$","",Avocadodf$average_price))
+Avocadodf$date <- as.Date(as.character(Avocadodf$date), format="%m/%d/%Y")
+Avocadodf$year <- as.factor(Avocadodf$year)
+str(Avocadodf)
+summary(Avocadodf$date)
+options(scipen = 100)
+
+```
+### This dataset is from Jan 2015 to Nov 2020 . Missing Data can affect the 2020 sales , so let's delete those data
+```{r}
+Avocadodf <- Avocadodf[which(Avocadodf$date < "2020-01-01"), ]
+```
+```{r}
+Avocadodf <- Avocadodf[which(Avocadodf$region != "Total U.S."), ]
+```
+
+
+### 1.  avocado type sales analytics 
+```{r}
+library(dplyr)
+library(ggplot2)
+library(wesanderson)
+
+```
+### 1-1 avg sales price by type per year 
+```{r}
+AvgPriceByType <- Avocadodf %>% group_by(type,year) %>% summarise(TotalSales = sum(total_volume), AvgPrice= mean(average_price))
+
+```
+```{r}
+AvgPriceByType 
+```
+```{r}
+ggplot(aes(x= year, y = AvgPrice, group = type, color = type), data = AvgPriceByType)+ geom_point() + geom_line() + xlab("Year") +ylab("AvgPrice") + ggtitle("Avocado avg price by type from 2015 to 2019") + theme(plot.title = element_text(hjust= 0.5))
+```
+### We can see conventional avocado is cheaper than organic avocado, Organic avocado price floats around $1.5 to $1.8, on the other hand, Conventional avocado price is around $1 to $1.3
+
+### 1-2.Average sales volume by avocado type by year
+```{r}
+SalesVolume <- Avocadodf %>% group_by(year,type) %>% summarise(Total = sum(total_volume))
+```
+```{r}
+SalesVolume
+```
+
+
+```{r}
+ggplot(data = SalesVolume, aes(x = year, y= Total, fill = type))+ geom_bar(width = 0.5, stat = "identity",
+                                                                           position = "dodge")+ scale_fill_manual(values=wes_palette(n=2, name="Chevalier1")) +
+  xlab("year") +ylab("Total Sales Volume") +ggtitle("Sales Volume by year") + theme(plot.title = element_text(hjust= 0.5))
+```
+#### Overall, Conventional sales volume is way higher than organic avocado sales .Overall sales volume increased over the past years.
+
+
+### 1-3. Avocado sales price by region 
+
+```{r}
+SalesbyRegion <- Avocadodf %>% group_by(region, type, year) %>% summarise(AvgPrice=mean(average_price))
+```
+```{r}
+SalesbyRegion
+```
+
+
+```{r}
+ggplot(data= SalesbyRegion, aes(x = year, y=AvgPrice, group =type, color = type)) +  geom_line()+ facet_wrap(~region) +scale_color_manual(values=wes_palette(n=2, name="IsleofDogs1"))+
+  xlab("Region") +ylab("Total Sales Price") + ggtitle("Sales Price by Region") + theme(plot.title = element_text(hjust= 0.5))
+```
+## Overall, Conventioanl average price went down in 2016 and 2020, but it went up in 2017. Price in Northwest significantly went up since 2015, on the other hand, price went down in Northeast and Southeast over the years. 
+
+### 2. sales by avocado size 
+
+### 2-1 avg sales volume per avocado size from 2015 to 2020
+
+```{r}
+TotalSalesBySize <- Avocadodf %>% select(small_bags, large_bags, xlarge_bags, year, total_bags) %>% group_by(year)%>% 
+  summarise(small_sales= sum(small_bags), large_sales = sum(large_bags), xlarge_sales = sum(xlarge_bags), totalSales =sum(total_bags))
+```
+```{r}
+TotalSalesBySize
+```
+### use tidyr to gather the data by size 
+```{r}
+library(tidyr)
+
+
+TotalsalesSize <- TotalSalesBySize %>% gather(size, sales, small_sales:xlarge_sales)
+TotalsalesSize
+
+
+```
+
+```{r}
+ggplot( aes(x = year, y= sales, fill = size), data = TotalsalesSize) +  geom_bar(width = 0.5, stat = "identity",
+                                                                           position = "stack") +scale_fill_manual(values=wes_palette(n=3, name="Moonrise1"))+
+  xlab("year") +ylab("Total Sales volume") + ggtitle("Sales volume by size") + theme(plot.title = element_text(hjust= 0.5))
+```
+### Each year, small size avocado has the higest sales volume, on the other hand, xlarge sales volume has the lowest sales volume.  We can also see that total avocado consumption increased each year. 
+
+### 3. Sales pattern by season 
+### 3-1 seasonal average price pattern  by year 
+#### Let's add new dataset as month 
+
+```{r}
+Avocadodf$month <- format(as.Date(Avocadodf$date), "%m")
+
+Avocadodf$month <- sapply(Avocadodf$month, function(x) month.abb[as.numeric(x)])
+Avocadodf$month = factor(Avocadodf$month,levels = month.abb)
+```
+### Aggregate average price per month by year 
+```{r}
+monthtoyear <- Avocadodf %>% group_by(month, year) %>% summarise(AvgPrice =mean(average_price))
+
+monthtoyear
+```
+
+```{r}
+ggplot(aes(x = month, y= AvgPrice, group = year, color =year), data = monthtoyear)+geom_point() +geom_line()+scale_color_manual(values=wes_palette(n=5, name="FantasticFox1"))
+```
+### we can see the trends that average price went up from May to September in most year, and it peaked in August and it went down in the fall and winter. There was significant sales price change in Sep 2017 , which average price went to high around $2, however, the price drop down around 1.3 in December 2017. 
+
+### 3-2 seasonal total sales volume
+```{r}
+seasonalsalesyear <- Avocadodf %>% group_by(month, year) %>% summarise(Totalvolume =sum(total_volume))
+seasonalsalesyear
+seasonalsalesyear$year = as.factor(seasonalsalesyear$year)
+```
+```{r}
+ggplot(aes(x = month, y= Totalvolume, group = year, color =year), data = seasonalsalesyear)+geom_point() +geom_line() +scale_color_manual(values=wes_palette(n=5, name="FantasticFox1"))
+
+```
+### Most year sales volume fluctuated between 300M to 600M during a season.
+
+### 3-3 seasoanl sales by region 
+```{r}
+seasonalsalesregion <- Avocadodf %>% group_by(month, year, region) %>%summarise(Totalvolume =sum(total_volume))
+seasonalsalesregion
+```
+```{r}
+ggplot(aes(x = month, y= Totalvolume, group = year, color =year), data = seasonalsalesregion)+geom_point() +geom_line() +scale_color_manual(values=wes_palette(n=5, name="Moonrise3")) +facet_wrap(~ region) + xlab("month") + ylab("Total Sales Volume") + ggtitle( "Total Sales Time Series Trend by Region")
+```
+### We can see there are no dramatic sales volume change in Eastcoast and Northwest . On the other hand, there is seasoanl consumption pettern in the WestCoast and South Central. 
+### Now let's see if sales price affect avocado consumption. 
+### 4-1 correlation 
+
+### First aggregate total sales volume and average price 
+```{r}
+cor1 <- Avocadodf %>% select(average_price, total_volume, type) %>% group_by(type)
+cor1
+```
+```{r}
+ggplot(aes(x =average_price,y = total_volume), data =cor1) +geom_point(aes(color =type))+scale_color_manual(values=wes_palette(n=2, name="GrandBudapest2"))  + xlab("average Sales Price") +ylab("Total Sales volume") +
+  ggtitle("Correlation between average sales price and total sales volume") 
+```
+### We can see there are negatice correlation between sales price and total sales volume in convential avocado, on the other hand, there is no correlation in organic avocado. 
+
+#### 4-2 prediction 
+
+```{r}
+names(wes_palettes)
+```
+
+
+```{r}
+
+options(scipen = 100)
+
+```
+```{r}
+install.packages('forecast')
+library(forecast)
+```
+```{r}
+forecastdf <- Avocadodf %>% group_by(month, year, type) %>% filter(type == "organic") %>% summarise(Total = sum(total_volume)) 
+```
+```{r}
+forecastdf
+```
+```{r}
+install.packages("fpp2")
+library(fpp2)
+```
+```{r}
+Y <- ts(forecastdf[ ,4], start = c(2015,1), frequency = 12)
+```
+## time plot
+```{r}
+autoplot(Y)+ ggtitle("time series plot")
+```
+## take the first differece of the data to remove trends
+```{r}
+DY <- diff(Y)
+```
+
+```{r}
+autoplot(DY)+ ggtitle("time series plot of differenced data")
+```
+```{r}
+ggseasonplot(DY)
+```
+```{r}
+ggsubseriesplot(DY)
+```
+### forecast
+### !. benchmark method 
+### 2. Seaonal naive 
+```{r}
+fit <- snaive(DY)
+print(summary(fit))
+```
+
+```{r}
+checkresiduals(fit)
+```
+
